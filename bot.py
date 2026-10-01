@@ -1,7 +1,8 @@
-
 import os
 import sqlite3
 import threading
+from datetime import date
+
 from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -33,6 +34,11 @@ def init_db():
             points INTEGER DEFAULT 0
         )
     """)
+
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN last_daily TEXT")
+    except sqlite3.OperationalError:
+        pass
 
     conn.commit()
     conn.close()
@@ -82,6 +88,33 @@ def add_points(user_id, amount):
 
     conn.commit()
     conn.close()
+
+
+def claim_daily(user_id):
+    today = date.today().isoformat()
+
+    conn = sqlite3.connect(DB)
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT last_daily FROM users WHERE user_id=?",
+        (user_id,)
+    )
+    row = cur.fetchone()
+
+    if row and row[0] == today:
+        conn.close()
+        return False
+
+    cur.execute(
+        "UPDATE users SET points = points + 5, last_daily=? WHERE user_id=?",
+        (today, user_id)
+    )
+
+    conn.commit()
+    conn.close()
+
+    return True
 
 
 def get_leaderboard():
@@ -272,14 +305,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "daily":
 
-        add_points(user_id, 5)
-
-        await query.edit_message_text(
-            "🔥 Daily Challenge!\n\n"
-            "🎁 Daily reward: +5 Points\n\n"
-            "Come back tomorrow for another reward!\n\n"
-            "👉 /start"
-        )
+        if claim_daily(user_id):
+            await query.edit_message_text(
+                "🔥 Daily Challenge!\n\n"
+                "🎁 Daily reward: +5 Points\n\n"
+                "ነገ ለሌላ ሽልማት ተመልሰው ይምጡ!\n\n"
+                "👉 /start"
+            )
+        else:
+            await query.edit_message_text(
+                "⏳ የዛሬውን ሽልማት አስቀድመው ወስደዋል።\n\n"
+                "ነገ ተመልሰው ይምጡ!\n\n"
+                "👉 /start"
+            )
 
     elif query.data == "premium":
 
