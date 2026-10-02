@@ -1,4 +1,5 @@
 import os
+import random
 import sqlite3
 import threading
 from datetime import date
@@ -136,40 +137,103 @@ def get_leaderboard():
 
 # -------------------------
 # Questions
+# (question, correct answer, [3 wrong answers])
 # -------------------------
 
 QUESTIONS = [
-    {
-        "question": "የኢትዮጵያ ዋና ከተማ የት ነው?",
-        "answers": ["አዲስ አበባ", "ጎንደር", "መቀሌ", "ሀዋሳ"],
-        "correct": 0
-    },
-    {
-        "question": "2 + 2 = ?",
-        "answers": ["3", "4", "5", "6"],
-        "correct": 1
-    },
-    {
-        "question": "የፀሐይ ቅርብ ፕላኔት የትኛው ነው?",
-        "answers": ["ምድር", "ማርስ", "ሜርኩሪ", "ጁፒተር"],
-        "correct": 2
-    }
+    # ---- ኢትዮጵያ ----
+    ("የኢትዮጵያ ዋና ከተማ የት ነው?",
+     "አዲስ አበባ", ["ጎንደር", "መቀሌ", "ሀዋሳ"]),
+    ("የአድዋን ጦርነት የመሩት ንጉሠ ነገሥት ማን ናቸው?",
+     "ዳግማዊ ምኒልክ", ["ዳግማዊ ቴዎድሮስ", "ዳግማዊ ዮሐንስ", "ኃይለ ሥላሴ"]),
+    ("የአድዋ ጦርነት የተካሄደው በስንት ዓ.ም. ነው (በኢትዮጵያ አቆጣጠር)?",
+     "1888", ["1878", "1898", "1908"]),
+    ("የዓባይ ወንዝ መነሻ የሆነው ሐይቅ የትኛው ነው?",
+     "ጣና", ["ላንጋኖ", "ዝዋይ", "አባያ"]),
+    ("በኢትዮጵያ ከፍተኛው ተራራ የትኛው ነው?",
+     "ራስ ዳሽን", ["አባ ያሬድ", "ቱሉ ዲምቱ", "ዞኳላ"]),
+    ("በአለት የተፈለፈሉ አብያተ ክርስቲያናት የሚገኙባት ከተማ የትኛዋ ናት?",
+     "ላሊበላ", ["አክሱም", "ጎንደር", "ሐረር"]),
+    ("አክሱም የሚገኘው በየትኛው ክልል ነው?",
+     "ትግራይ", ["አማራ", "ኦሮሚያ", "ሶማሌ"]),
+    ("የኢትዮጵያ አዲስ ዓመት የሚጀምረው በየትኛው ወር ነው?",
+     "መስከረም", ["ጥቅምት", "ሐምሌ", "ጥር"]),
+    ("የኢትዮጵያ የቀን አቆጣጠር ስንት ወራት አሉት?",
+     "13", ["12", "11", "14"]),
+    ("ታላቁ የኢትዮጵያ ህዳሴ ግድብ የተገነባው በየትኛው ወንዝ ላይ ነው?",
+     "ዓባይ", ["አዋሽ", "ዋቢ ሸበሌ", "ኦሞ"]),
+    ("አበበ ቢቂላ በ1960 እ.ኤ.አ. በሮም ኦሊምፒክ ያሸነፈው በየትኛው ውድድር ነው?",
+     "ማራቶን", ["5000 ሜትር", "10000 ሜትር", "የዱላ ቅብብል"]),
+    ("ቡና መገኛው የትኛው አገር ነው?",
+     "ኢትዮጵያ", ["ብራዚል", "ኮሎምቢያ", "የመን"]),
+    ("የኢትዮጵያ ገንዘብ ስም ማን ነው?",
+     "ብር", ["ሽልንግ", "ናቅፋ", "ዶላር"]),
+    ("ከዓለም በጣም ሞቃታማ ቦታዎች አንዱ የሆነው ዳሎል የሚገኘው በየትኛው ክልል ነው?",
+     "አፋር", ["ሲዳማ", "ጋምቤላ", "ሐረሪ"]),
+    ("ጥምቀት በዓል የሚከበረው በየትኛው ወር ነው?",
+     "ጥር", ["መስከረም", "ሚያዝያ", "ሐምሌ"]),
+
+    # ---- ሳይንስ ----
+    ("የፀሐይ ቅርብ ፕላኔት የትኛው ነው?",
+     "ሜርኩሪ", ["ምድር", "ማርስ", "ጁፒተር"]),
+    ("በፀሐይ ሥርዓት ውስጥ ትልቁ ፕላኔት የትኛው ነው?",
+     "ጁፒተር", ["ሳተርን", "ምድር", "ኔፕቱን"]),
+    ("የውሃ ኬሚካላዊ ቀመር ምንድን ነው?",
+     "H₂O", ["CO₂", "O₂", "NaCl"]),
+    ("ተክሎች ከአየር የሚወስዱት ጋዝ የትኛው ነው?",
+     "ካርቦን ዳይኦክሳይድ", ["ኦክሲጅን", "ናይትሮጅን", "ሃይድሮጅን"]),
+    ("የሰው አካል ትልቁ አካል የትኛው ነው?",
+     "ቆዳ", ["ጉበት", "ልብ", "ሳንባ"]),
+    ("አንድ ጎልማሳ ሰው ስንት ጥርስ አለው?",
+     "32", ["28", "30", "36"]),
+    ("ምድር ፀሐይን አንድ ጊዜ ዞራ የምትጨርሰው በምን ያህል ጊዜ ነው?",
+     "አንድ ዓመት", ["አንድ ወር", "አንድ ቀን", "አንድ ሳምንት"]),
+    ("በተፈጥሮ ከሚገኙ ነገሮች ሁሉ እጅግ ጠንካራው የትኛው ነው?",
+     "አልማዝ", ["ወርቅ", "ብረት", "ብር"]),
+    ("በክፍል ሙቀት ፈሳሽ የሆነው ብረት የትኛው ነው?",
+     "ሜርኩሪ", ["ብረት", "አሉሚኒየም", "መዳብ"]),
+    ("በዓለም ላይ ትልቁ እንስሳ የትኛው ነው?",
+     "ሰማያዊ ዌል", ["ዝሆን", "ቀጭኔ", "ጉማሬ"]),
+    ("በመሬት ላይ ፈጣኑ እንስሳ የትኛው ነው?",
+     "አቦሸማኔ", ["አንበሳ", "ፈረስ", "ነብር"]),
+
+    # ---- አጠቃላይ እውቀት ----
+    ("2 + 2 = ?",
+     "4", ["3", "5", "6"]),
+    ("15 × 4 = ?",
+     "60", ["45", "50", "65"]),
+    ("በዓለም ላይ ስንት አህጉራት አሉ?",
+     "7", ["5", "6", "8"]),
+    ("በዓለም ትልቁ ውቅያኖስ የትኛው ነው?",
+     "ፓሲፊክ", ["አትላንቲክ", "ህንድ", "አርክቲክ"]),
+    ("በስፋት ትልቋ አገር የትኛዋ ናት?",
+     "ሩሲያ", ["ቻይና", "አሜሪካ", "ካናዳ"]),
+    ("በዓለም ከፍተኛው ተራራ የትኛው ነው?",
+     "ኤቨረስት", ["ኬ2", "ኪሊማንጃሮ", "ሞንት ብላንክ"]),
+    ("የኬንያ ዋና ከተማ የት ነው?",
+     "ናይሮቢ", ["ካምፓላ", "ዳሬ ሰላም", "ኪጋሊ"]),
+    ("የፈረንሳይ ዋና ከተማ የት ነው?",
+     "ፓሪስ", ["ሮም", "በርሊን", "ለንደን"]),
+    ("የግብፅ ዋና ከተማ የት ነው?",
+     "ካይሮ", ["አሌክሳንድሪያ", "ካርቱም", "ትሪፖሊ"]),
+    ("የመዝለያ ዓመት (Leap year) ስንት ቀናት አሉት?",
+     "366", ["365", "364", "367"]),
+    ("ባለ ስድስት ጎን ቅርጽ ምን ይባላል?",
+     "ሄክሳጎን", ["ፔንታጎን", "ኦክታጎን", "ትራፔዚየም"]),
+    ("በጨረቃ ላይ የረገጠ የመጀመሪያው ሰው ማን ነው?",
+     "ኒል አርምስትሮንግ", ["ዩሪ ጋጋሪን", "ቡዝ ኦልድሪን", "ጆን ግሌን"]),
+    ("በእግር ኳስ ጨዋታ በሜዳ ላይ ከአንድ ቡድን ስንት ተጫዋቾች ይጫወታሉ?",
+     "11", ["9", "10", "12"]),
 ]
 
+CORRECT_POINTS = 10
+
 
 # -------------------------
-# Start
+# Main menu
 # -------------------------
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    user = update.effective_user
-
-    add_user(
-        user.id,
-        user.first_name or "User"
-    )
-
+def build_menu():
     keyboard = [
         [
             InlineKeyboardButton("🧠 Start Quiz", callback_data="quiz")
@@ -191,15 +255,35 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await update.message.reply_text(
+    text = (
         "🎉 እንኳን ወደ Amharic Quiz በደህና መጡ!\n\n"
         "🧠 Quiz ይጫወቱ\n"
         "🏆 Points ያግኙ\n"
         "🔥 Daily Challenge ይሞክሩ\n"
         "⭐ Premium ይጠቀሙ\n\n"
-        "👇 ከታች ይምረጡ፦",
+        "👇 ከታች ይምረጡ፦"
+    )
+
+    return text, InlineKeyboardMarkup(keyboard)
+
+
+# -------------------------
+# Start
+# -------------------------
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user = update.effective_user
+
+    add_user(
+        user.id,
+        user.first_name or "User"
+    )
+
+    text, reply_markup = build_menu()
+
+    await update.message.reply_text(
+        text,
         reply_markup=reply_markup
     )
 
@@ -208,13 +292,41 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Quiz
 # -------------------------
 
-async def show_quiz(query):
+def next_question_index(user_data):
+    queue = user_data.get("queue")
 
-    question = QUESTIONS[0]
+    if not queue:
+        queue = list(range(len(QUESTIONS)))
+        random.shuffle(queue)
+
+    index = queue.pop()
+    user_data["queue"] = queue
+
+    return index
+
+
+async def show_quiz(query, context):
+
+    user_data = context.user_data
+
+    note = ""
+    if "queue" in user_data and not user_data["queue"]:
+        note = "🔄 ሁሉንም ጥያቄዎች ጨርሰዋል! እንደገና እንጀምር።\n\n"
+
+    index = next_question_index(user_data)
+    question, correct, wrongs = QUESTIONS[index]
+
+    options = [correct] + list(wrongs)
+    random.shuffle(options)
+
+    user_data["current"] = {
+        "correct": options.index(correct),
+        "text": correct
+    }
 
     keyboard = []
 
-    for i, answer in enumerate(question["answers"]):
+    for i, answer in enumerate(options):
         keyboard.append([
             InlineKeyboardButton(
                 answer,
@@ -227,9 +339,20 @@ async def show_quiz(query):
     ])
 
     await query.edit_message_text(
-        f"🧠 Quiz\n\n{question['question']}",
+        f"{note}🧠 Quiz\n\n{question}",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
+
+def after_answer_keyboard():
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("➡️ ቀጣይ ጥያቄ", callback_data="quiz")
+        ],
+        [
+            InlineKeyboardButton("🏠 Menu", callback_data="menu")
+        ]
+    ])
 
 
 # -------------------------
@@ -244,25 +367,41 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
 
     if query.data == "quiz":
-        await show_quiz(query)
-
-    elif query.data == "answer_0":
-
-        add_points(user_id, 10)
-
-        await query.edit_message_text(
-            "✅ ትክክል!\n\n"
-            "🎉 +10 Points\n\n"
-            "ቀጣዩን Quiz ለመጫወት /start ይጫኑ።"
-        )
+        await show_quiz(query, context)
 
     elif query.data.startswith("answer_"):
 
-        await query.edit_message_text(
-            "❌ ስህተት!\n\n"
-            "እንደገና ይሞክሩ።\n\n"
-            "👉 /start"
-        )
+        current = context.user_data.get("current")
+
+        if not current:
+            await query.edit_message_text(
+                "⚠️ ይህ ጥያቄ አልፏል።\n\n"
+                "አዲስ ጥያቄ ለማግኘት ከታች ይጫኑ።",
+                reply_markup=after_answer_keyboard()
+            )
+            return
+
+        context.user_data["current"] = None
+
+        chosen = int(query.data.split("_")[1])
+
+        if chosen == current["correct"]:
+
+            add_points(user_id, CORRECT_POINTS)
+
+            await query.edit_message_text(
+                "✅ ትክክል!\n\n"
+                f"🎉 +{CORRECT_POINTS} Points",
+                reply_markup=after_answer_keyboard()
+            )
+
+        else:
+
+            await query.edit_message_text(
+                "❌ ስህተት!\n\n"
+                f"ትክክለኛው መልስ፦ {current['text']}",
+                reply_markup=after_answer_keyboard()
+            )
 
     elif query.data == "points":
 
@@ -333,7 +472,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "menu":
 
-        await query.message.delete()
+        text, reply_markup = build_menu()
+
+        await query.edit_message_text(
+            text,
+            reply_markup=reply_markup
+        )
 
 
 # -------------------------
@@ -382,7 +526,7 @@ def main():
         CallbackQueryHandler(button_handler)
     )
 
-    print("Amharic Quiz Bot is running...")
+    print("Amharic Quiz Bot is running...", flush=True)
 
     application.run_polling()
 
